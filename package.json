@@ -1,0 +1,14 @@
+{
+  "name": "strava-webhook",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "oauth": "node src/oauth.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "googleapis": "^178.0.0"
+  }
+}
