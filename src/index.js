@@ -43,7 +43,7 @@ app.post('/webhook', async (req, res) => {
       console.log(`Activity ${activityId} is ${activity.sport_type}, skipping.`);
       return;
     }
-    const { laps, streams } = await fetchActivityDetail(activityId);
+    const { laps, streams } = await fetchActivityDetail(activity);
     console.log(`Activity ${activityId}: ${laps.length} laps, streams keys: ${Object.keys(streams).join(', ')}`);
     const analysis = analyzeLaps(activity, laps, streams);
     const kmSplits = analyzeKmSplits(activity, streams);

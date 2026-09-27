@@ -82,12 +82,34 @@ export async function fetchStreams(
 
 /**
  * Convenience: fetch both laps and streams in parallel.
- * @param {number|string} activityId
+ *
+ * Manually entered activities have no GPS data: Strava returns no laps and an
+ * error for streams. For those, streams come back empty and a single lap is
+ * built from the activity summary, so the run still lands in the sheet.
+ * @param {Object} activity  Strava activity summary (from list or fetchActivity)
  * @returns {Promise<{ laps: Array, streams: Object }>}
  */
-export async function fetchActivityDetail(activityId) {
-  const [laps, streams] = await Promise.all([fetchLaps(activityId), fetchStreams(activityId)]);
-  return { laps, streams };
+export async function fetchActivityDetail(activity) {
+  const [laps, streams] = await Promise.all([
+    fetchLaps(activity.id),
+    activity.manual ? {} : fetchStreams(activity.id),
+  ]);
+  return { laps: laps.length ? laps : [summaryLap(activity)], streams };
+}
+
+function summaryLap(activity) {
+  return {
+    lap_index: 1,
+    name: activity.manual ? 'Manual entry' : 'Lap 1',
+    distance: activity.distance,
+    moving_time: activity.moving_time,
+    elapsed_time: activity.elapsed_time,
+    average_speed: activity.average_speed,
+    max_speed: activity.max_speed,
+    average_heartrate: activity.average_heartrate,
+    max_heartrate: activity.max_heartrate,
+    total_elevation_gain: activity.total_elevation_gain,
+  };
 }
 
 /**

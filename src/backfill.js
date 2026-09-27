@@ -37,7 +37,7 @@ async function run() {
       console.log(`\n[${fetched + 1}] ${activity.name} (${activity.id}) — ${activity.start_date_local}`);
 
       try {
-        const { laps, streams } = await fetchActivityDetail(activity.id);
+        const { laps, streams } = await fetchActivityDetail(activity);
         console.log(`  laps: ${laps.length}, streams: ${Object.keys(streams).join(', ')}`);
         const analysis = analyzeLaps(activity, laps, streams);
         const kmSplits = analyzeKmSplits(activity, streams);

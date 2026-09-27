@@ -209,6 +209,9 @@ export async function appendStreams(activityId, activityName, streams) {
 
   await ensureSheet(sheets, 'Streams', headers);
 
+  // Manual activities have no streams.
+  if (!Object.keys(streams).length) return;
+
   const written = await getWrittenActivityIds(sheets, 'Streams');
   if (written.has(String(activityId))) return;
 
