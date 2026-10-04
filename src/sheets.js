@@ -31,6 +31,47 @@ function markWritten(sheetTitle, activityId) {
   if (writtenIdsCache[sheetTitle]) writtenIdsCache[sheetTitle].add(String(activityId));
 }
 
+// Tabs keyed by activity_id in column A. A refreshed activity is removed from all of them.
+const ACTIVITY_TABS = ['Laps', 'Segment Analysis', 'KM Splits', 'Mile Splits', 'Streams'];
+
+/**
+ * Delete every row for an activity from the data tabs, so re-importing it writes the
+ * current version instead of being skipped as already written. Used when an activity
+ * is edited on Strava (renamed, cropped, sport type changed).
+ * @returns {Promise<number>} rows deleted
+ */
+export async function deleteActivityRows(activityId) {
+  const sheets = getClient();
+  const id = String(activityId);
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID, fields: 'sheets.properties' });
+  const sheetIds = Object.fromEntries(meta.data.sheets.map((s) => [s.properties.title, s.properties.sheetId]));
+
+  const requests = [];
+  let deleted = 0;
+  for (const title of ACTIVITY_TABS) {
+    if (!(title in sheetIds)) continue;
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${title}!A2:A` });
+    // Group matching rows into contiguous ranges. Index i in A2:A is sheet row i + 1 (0-based, row 0 = header).
+    const ranges = [];
+    (res.data.values ?? []).forEach((r, i) => {
+      if (String(r[0]) !== id) return;
+      const last = ranges[ranges.length - 1];
+      if (last && last.end === i + 1) last.end = i + 2;
+      else ranges.push({ start: i + 1, end: i + 2 });
+    });
+    // Bottom-up, so each deletion leaves the earlier ranges' indexes unchanged.
+    for (const { start, end } of ranges.reverse()) {
+      requests.push({ deleteDimension: { range: { sheetId: sheetIds[title], dimension: 'ROWS', startIndex: start, endIndex: end } } });
+      deleted += end - start;
+    }
+    writtenIdsCache[title]?.delete(id);
+  }
+  if (requests.length) {
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests } });
+  }
+  return deleted;
+}
+
 const ensuredSheets = new Set();
 
 async function ensureSheet(sheets, title, headers) {
