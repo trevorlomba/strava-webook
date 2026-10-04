@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { fetchActivity, fetchActivityDetail } from './strava.js';
-import { appendLaps, appendStreams, appendSegmentAnalysis, appendKmSplits, appendMileSplits } from './sheets.js';
+import { appendLaps, appendStreams, appendSegmentAnalysis, appendKmSplits, appendMileSplits, deleteActivityRows } from './sheets.js';
 import { analyzeLaps, analyzeKmSplits, analyzeMileSplits } from './analyze.js';
 
 const app = express();
@@ -33,12 +33,16 @@ app.post('/webhook', async (req, res) => {
   const event = req.body;
   console.log('Webhook event:', JSON.stringify(event));
 
-  // Only process new activity creates.
-  if (event.object_type !== 'activity' || event.aspect_type !== 'create') return;
+  // New activities are imported; edited ones replace their old rows.
+  if (event.object_type !== 'activity' || !['create', 'update'].includes(event.aspect_type)) return;
 
   const activityId = event.object_id;
   try {
     const activity = await fetchActivity(activityId);
+    if (event.aspect_type === 'update') {
+      const removed = await deleteActivityRows(activityId);
+      console.log(`Activity ${activityId} updated: removed ${removed} old rows.`);
+    }
     if (activity.sport_type !== 'Run') {
       console.log(`Activity ${activityId} is ${activity.sport_type}, skipping.`);
       return;
